@@ -30,9 +30,35 @@ app.use(userRoutes, projectRoutes, detectionRoutes, segmentationRoutes, exportfi
         ,importDataset, classificationRoute
 )
 
+import util from 'util';
+
+const exec = util.promisify(require('child_process').exec);
+
+const du = async (path: string) => {
+    const { stdout, stderr } = await exec('du -sh ' + path);
+    if (!stderr){
+	console.log('stdout:', stdout);
+	let sz = stdout.split('\t');
+	sz[1] = sz[1].replace('\n', "");
+        return sz;
+    }else {
+        console.log('stderr:', stderr);
+    }
+}
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(process.cwd(), 'welcome.html'))
 })
+
+
+app.get('/du', async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    let sz = await du("/home/antcv/bantcv/project_path/.")
+    res.send(JSON.stringify({ [sz[1]] : sz[0] }) )
+    res.end()
+})
+
+
 
 app.listen(5000, () => {
     console.log('Server is running on port 5000')

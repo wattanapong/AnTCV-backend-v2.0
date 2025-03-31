@@ -4,6 +4,14 @@ const jwt = require('jsonwebtoken')
 export const checkAuth = (req: Request, res: Response, next: Function) => {
     try {
         const token = req.cookies.token
+        if (!token){
+            console.error('error: cookie missing');
+            return res.status(500).json({ 
+                error: 'failed',
+                type: 'error',
+                message: 'Please login', 
+            })
+        }
         const user = jwt.verify(token, process.env.SECRET as string)
 
         if(user.id){
