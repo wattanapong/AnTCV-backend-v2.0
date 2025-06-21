@@ -12,6 +12,8 @@ router.get('/detection/bounding_box/:iddetection', check.checkAuth, detectionCon
 router.get('/detection/allDetection/:idproject', check.checkAuth, detectionController.getAllDetection)
 router.get('/detection/getProcess/:idproject', check.checkAuth, detectionController.get_process)
 
+router.get('/detection/count/:idproject', check.checkAuth, detectionController.count_images)
+
 router.put('/update/detection/class', check.checkAuth, detectionController.updateClass)
 
 router.delete('/delete/detection/bounding_box', check.checkAuth, detectionController.delBounding_box)

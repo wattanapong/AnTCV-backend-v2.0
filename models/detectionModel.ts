@@ -166,6 +166,26 @@ export const getAllDetection = async (idproject: any) => {
     }
 }
 
+export const countDetection = async (idproject: any) => {
+    try {
+        const detections = await prisma.detection.count({
+            where: {
+                idproject: idproject
+            },
+        })
+
+        const classes = await prisma.detection_class.count({
+            where: { idproject: idproject}
+        })
+
+        return {images: detections, classes: classes};
+        
+    } catch (error) {
+        console.log("get detection ERROR!!")
+        throw error
+    }
+}
+
 export const getDetectionByImg = async (idproject: any, img: string) => {
     try {
         return await prisma.detection.findMany({

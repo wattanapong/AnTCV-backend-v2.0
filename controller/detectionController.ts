@@ -2,6 +2,7 @@ import { Request, Response } from "express"
 import * as detectionModel from '../models/detectionModel'
 import * as segmentationModel from '../models/segmentationModel'
 import * as classificationModel from '../models/classificationModel'
+import { Parser } from "yaml"
 const jwt = require('jsonwebtoken')
 
 export const createDetectionClass = async (req: Request, res: Response) => {
@@ -369,4 +370,12 @@ export const get_process = async (req: Request, res: Response) => {
         console.error('error:', error);
         return res.status(500).json({ error: 'get process in detection ERROR!!' })
     }
+}
+
+export const count_images = async (req: Request, res: Response) => {
+    const idproject = parseInt(req.params.idproject)
+    
+    return res.status(200).json({
+        'count': await detectionModel.countDetection(idproject),
+    })
 }

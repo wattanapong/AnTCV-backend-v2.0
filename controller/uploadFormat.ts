@@ -17,26 +17,27 @@ import sharpBmp from 'sharp-bmp'
 const StreamZip = require('node-stream-zip');
 
 export const YOLO_detection = async (req: Request, res: Response) => {
+
+    const idproject = parseInt(req.body.idproject)
+    const projectPath = path.join(process.cwd(), 'uploads', idproject.toString());
+    var num_imgs = 0;
+    var annotations = 0;
+    var classes = 0;
     try {
         const token = req.cookies.token
         const user = jwt.verify(token, process.env.SECRET as string)
         const file = req.file
-        const idproject = parseInt(req.body.idproject)
+        
+        const detectionImages = await detectionModel.countDetection(idproject)
 
-        const checkData = await detectionModel.getAllDetection(idproject)
-
-        if (checkData.length != 0) {
+        if (detectionImages.images != 0 || detectionImages.classes != 0) {
             return res.status(200).json({
                 type: 'failed',
-                message: 'Not allowed to import',
+                message: 'Upload incompleted, please delete existing images and classes',
             })
         }
 
-        const projectPath = path.join(process.cwd(), 'uploads', idproject.toString());
-
-        if (!fs.existsSync(projectPath)) {
-            fs.mkdirSync(projectPath, { recursive: true });
-        }
+        fs.mkdirSync(projectPath, { recursive: true });
 
         // const zip = new AdmZip(file?.path!);
         // zip.extractAllTo(projectPath, true);
@@ -109,31 +110,44 @@ export const YOLO_detection = async (req: Request, res: Response) => {
                 continue;
             }
 
-            const lines = content.split('\n');
-            for (const line of lines) {
-                if (line.trim()) {
-                    const [classId, x_center, y_center, width, height] = line.split(' ');
-                    const baseName = path.basename(labelFile, '.txt');
-                    let imageFileName = `${baseName}.jpg`;
+            const baseName = path.basename(labelFile, '.txt');
+            // const ext = path.extname(baseName)
+            const fileTypes = ['.jpg','.png','.JPG','.PNG','.jpeg','.JPEG']
+            var imageFileName = '';
 
-                    if (fs.existsSync(path.join(imagesDir, `${baseName}.png`))) {
-                        imageFileName = `${baseName}.png`;
+            for (let fi = 0; fi < fileTypes.length; fi++) {
+                const element = fileTypes[fi];
+                imageFileName = `${baseName}${element}`;
+                if (fs.existsSync(path.join(imagesDir, `${imageFileName}`))) {
+                    break;
+                }
+            }
+
+            if (imageFileName != ''){
+                num_imgs++;
+
+                const lines = content.split('\n');
+                for (const line of lines) {
+                    if (line.trim()) {
+                        const [classId, x_center, y_center, width, height] = line.split(' ');
+                        const imgPath = path.join(imagesDir, imageFileName)
+                        const metadata = await sharp(imgPath).metadata();
+                        const image_width = metadata.width;
+                        const image_height = metadata.height;
+
+                        annotations++;
+
+                        detections.push({
+                            classId: await mapClassId.map_detection_import(parseInt(classId), labels, idproject),
+                            x1: ((parseFloat(x_center) * image_width!) - ((parseFloat(width) * image_width!) / 2)) / image_width!,
+                            y1: ((parseFloat(y_center) * image_height!) - ((parseFloat(height) * image_height!) / 2)) / image_height!,
+                            x2: ((parseFloat(x_center) * image_width!) + ((parseFloat(width) * image_width!) / 2)) / image_width!,
+                            y2: ((parseFloat(y_center) * image_height!) + ((parseFloat(height) * image_height!) / 2)) / image_height!,
+                            user_id: user.id,
+                            image_path: imageFileName,
+                            idproject: idproject
+                        });
                     }
-                    const imgPath = path.join(imagesDir, imageFileName)
-                    const metadata = await sharp(imgPath).metadata();
-                    const image_width = metadata.width;
-                    const image_height = metadata.height;
-
-                    detections.push({
-                        classId: await mapClassId.map_detection_import(parseInt(classId), labels, idproject),
-                        x1: ((parseFloat(x_center) * image_width!) - ((parseFloat(width) * image_width!) / 2)) / image_width!,
-                        y1: ((parseFloat(y_center) * image_height!) - ((parseFloat(height) * image_height!) / 2)) / image_height!,
-                        x2: ((parseFloat(x_center) * image_width!) + ((parseFloat(width) * image_width!) / 2)) / image_width!,
-                        y2: ((parseFloat(y_center) * image_height!) + ((parseFloat(height) * image_height!) / 2)) / image_height!,
-                        user_id: user.id,
-                        image_path: imageFileName,
-                        idproject: idproject
-                    });
                 }
             }
         }
@@ -183,12 +197,17 @@ export const YOLO_detection = async (req: Request, res: Response) => {
 
         return res.status(200).json({
             type: 'success',
-            message: 'import bbox success',
+            message: `Upload successful, ${num_imgs} images uploaded and ${annotations} annotations created.`,
+            num_imgs: num_imgs
         })
 
     } catch (error) {
         console.error('error:', error);
-        return res.status(400).json({ error: 'upload YOLO detection ERROR!!' })
+        return res.status(400).json({ error: 'upload YOLO detection ERROR!!', num_imgs: num_imgs })
+    } finally{
+        if (fs.existsSync(projectPath)) {
+            fs.rmSync(projectPath, { recursive: true, force: true });
+        }
     }
 }
 

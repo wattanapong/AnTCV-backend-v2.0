@@ -1,5 +1,5 @@
 {
-    "watch": ["src", "config"],
+    "watch": ["src", "config","controller","middleware","models","routers"],
     "ignore": ["uploads/*", "node_modules/*", ".git"],
     "ext": "ts,json",
     "exec": "ts-node server.ts"
